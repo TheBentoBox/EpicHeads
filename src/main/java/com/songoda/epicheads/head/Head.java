@@ -1,15 +1,23 @@
 package com.songoda.epicheads.head;
 
-import com.songoda.core.utils.SkullItemCreator;
 import com.songoda.core.utils.TextUtils;
 import com.songoda.epicheads.EpicHeads;
 import com.songoda.epicheads.settings.Settings;
+
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.Material;
 
+import com.destroystokyo.paper.profile.ProfileProperty;
+import io.papermc.paper.datacomponent.item.ResolvableProfile;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 public class Head {
     private int id;
@@ -139,7 +147,7 @@ public class Head {
     }
 
     public ItemStack asItemStack(boolean favorite, boolean free) {
-        ItemStack skull = createSkullAndAutoDetectInput(getUrl());
+        ItemStack skull = createSkullFromUrl(getUrl());
         ItemMeta meta = skull.getItemMeta();
         meta.setDisplayName(getHeadItemName(favorite));
         meta.setLore(getHeadItemLore(free));
@@ -201,13 +209,32 @@ public class Head {
                 '}';
     }
 
-    private ItemStack createSkullAndAutoDetectInput(String urlThatIsNotInFactAnUrl) {
-        if (urlThatIsNotInFactAnUrl.startsWith("http://") || urlThatIsNotInFactAnUrl.startsWith("https://")) {
-            return SkullItemCreator.byTextureUrl(urlThatIsNotInFactAnUrl);
+    private ItemStack createSkullFromUrl(String urlOrTextureHash) {
+        String textureValue;
+
+        // Handle direct texture values.
+        if (urlOrTextureHash.matches("[A-Za-z0-9+/-]{100,}={0,3}")) {
+            textureValue = urlOrTextureHash;
+
+        // Handle URLs.
+        } else {
+            // If the URL doesn't start with http:// or https://, add
+            // https://textures.minecraft.net/texture/ to resolve using the
+            // Minecraft texture server.
+            if (!urlOrTextureHash.startsWith("http://") && !urlOrTextureHash.startsWith("https://")) {
+                urlOrTextureHash = "https://textures.minecraft.net/texture/" + urlOrTextureHash;
+            }
+
+            // Create a raw texture value and encode it to a base64 string.
+            String rawTextureValue = "{\"textures\":{\"SKIN\":{\"url\":\"" + urlOrTextureHash + "\"}}}";
+            textureValue = Base64.getEncoder().encodeToString(rawTextureValue.getBytes());
         }
-        if (urlThatIsNotInFactAnUrl.matches("[A-Za-z0-9+/-]{100,}={0,3}")) {
-            return SkullItemCreator.byTextureValue(urlThatIsNotInFactAnUrl);
-        }
-        return SkullItemCreator.byTextureUrlHash(urlThatIsNotInFactAnUrl);
+
+        ProfileProperty property = new ProfileProperty("textures", textureValue, "");
+        ResolvableProfile profile = ResolvableProfile.resolvableProfile().addProperty(property).build();
+
+        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+        item.setData(DataComponentTypes.PROFILE, profile);
+        return item;
     }
 }
