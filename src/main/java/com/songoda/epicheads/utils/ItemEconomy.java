@@ -2,7 +2,7 @@ package com.songoda.epicheads.utils;
 
 import com.songoda.core.hooks.economies.Economy;
 import com.songoda.third_party.com.cryptomorin.xseries.XMaterial;
-import com.songoda.third_party.com.cryptomorin.xseries.profiles.builder.XSkull;
+
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 
@@ -15,7 +15,7 @@ public class ItemEconomy extends Economy {
         }
 
         if (XMaterial.PLAYER_HEAD.isSimilar(itemStack)) {
-            return Objects.equals(XSkull.of(itemStack).getProfileValue(), XSkull.of(Methods.createToken(1)).getProfileValue());
+            return SkullUtils.haveSameProfile(itemStack, Methods.createToken(1));
         }
         return itemStack.isSimilar(Methods.createToken(1));
     }

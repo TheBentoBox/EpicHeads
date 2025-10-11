@@ -1,13 +1,12 @@
 package com.songoda.epicheads.listeners;
 
-import com.songoda.core.nms.Nms;
 import com.songoda.core.utils.HeadType;
-import com.songoda.core.utils.ItemUtils;
 import com.songoda.core.utils.TextUtils;
+import com.songoda.epicheads.utils.SkullUtils;
 import com.songoda.epicheads.EpicHeads;
 import com.songoda.epicheads.head.Head;
 import com.songoda.epicheads.settings.Settings;
-import com.songoda.third_party.com.cryptomorin.xseries.XMaterial;
+import org.bukkit.Material;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -15,6 +14,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.profile.PlayerTextures;
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 
 import java.util.ArrayList;
 import java.util.Optional;
@@ -38,15 +40,24 @@ public class DeathListeners implements Listener {
                     return;
                 }
 
-                String encodedStr = Nms.getImplementations().getPlayer().getProfile((Player) event.getEntity()).getTextureValue();
+                // Get the player's profile and extract texture value using Paper API
+                ItemStack playerHead = new ItemStack(Material.PLAYER_HEAD);
+                PlayerProfile profile = ((Player) event.getEntity()).getPlayerProfile();
+                
+                String encodedStr = profile.getProperties().stream()
+                        .filter(prop -> "textures".equals(prop.getName()))
+                        .map(ProfileProperty::getValue)
+                        .findFirst()
+                        .orElse(null);
+                
                 if (encodedStr == null) {
-                    itemNew = XMaterial.PLAYER_HEAD.parseItem();
+                    itemNew = new ItemStack(Material.PLAYER_HEAD);
 
                     ItemMeta meta = itemNew.getItemMeta();
                     meta.setDisplayName(TextUtils.formatText("&9" + ((Player) event.getEntity()).getDisplayName()));
                     itemNew.setItemMeta(meta);
                 } else {
-                    String url = ItemUtils.getDecodedTexture(encodedStr);
+                    String url = SkullUtils.getDecodedTexture(encodedStr);
 
                     Optional<Head> optional = this.plugin.getHeadManager().getHeads().stream()
                             .filter(head -> url.equals(head.getUrl())).findFirst();

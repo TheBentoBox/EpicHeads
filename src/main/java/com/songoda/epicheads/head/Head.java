@@ -164,18 +164,14 @@ public class Head {
         EpicHeads plugin = EpicHeads.getInstance();
         double cost = Settings.HEAD_COST.getDouble();
         List<String> lore = new ArrayList<>();
-        lore.add(plugin.getLocale().getMessage("general.head.id")
-                .processPlaceholder("id", this.id).toText());
         
-        // Add rating display to lore
-        String ratingText = getRatingDisplay() + " (" + this.totalRatings + " rating" + (this.totalRatings != 1 ? "s" : "") + ")";
-        lore.add(TextUtils.formatText("&7Rating: &e" + ratingText));
         if (!free) {
-            String fcost = Settings.ECONOMY_PLUGIN.getString().equalsIgnoreCase("item")
-                    ? cost + " " + Settings.ITEM_TOKEN_TYPE.getString()
-                    : /* EconomyManager.formatEconomy(cost) */ String.valueOf(cost);  // FIXME: EconomyManager#formatEconomy etc only work in some languages (. vs ,) and only for the currency symbol $
-            lore.add(plugin.getLocale().getMessage("general.head.cost")
-                    .processPlaceholder("cost", fcost).toText());
+            if (cost != 0) {
+                String finalCost = Settings.ECONOMY_PLUGIN.getString().equalsIgnoreCase("item") ? cost + " " + Settings.ITEM_TOKEN_TYPE.getString() : String.valueOf(cost); 
+                lore.add(plugin.getLocale().getMessage("general.head.cost").processPlaceholder("cost", finalCost).toText());
+            } else {
+                lore.add(plugin.getLocale().getMessage("general.head.cost_free").toText());
+            }
         }
         return lore;
     }

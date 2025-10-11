@@ -1,10 +1,10 @@
 package com.songoda.epicheads.settings;
 
-import com.songoda.core.compatibility.CompatibleMaterial;
 import com.songoda.core.configuration.Config;
 import com.songoda.core.configuration.ConfigSetting;
 import com.songoda.core.hooks.EconomyManager;
 import com.songoda.epicheads.EpicHeads;
+import org.bukkit.Material;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -70,16 +70,16 @@ public class Settings {
         CONFIG.load();
         CONFIG.setAutoremove(true).setAutosave(true);
 
-        // convert glass pane settings
+        // convert glass pane settings (legacy numeric color IDs to material names)
         int color;
         if ((color = GLASS_TYPE_1.getInt(-1)) != -1) {
-            CONFIG.set(GLASS_TYPE_1.getKey(), CompatibleMaterial.getGlassPaneForColor(color).name());
+            CONFIG.set(GLASS_TYPE_1.getKey(), getGlassPaneForColor(color).name());
         }
         if ((color = GLASS_TYPE_2.getInt(-1)) != -1) {
-            CONFIG.set(GLASS_TYPE_2.getKey(), CompatibleMaterial.getGlassPaneForColor(color).name());
+            CONFIG.set(GLASS_TYPE_2.getKey(), getGlassPaneForColor(color).name());
         }
         if ((color = GLASS_TYPE_3.getInt(-1)) != -1) {
-            CONFIG.set(GLASS_TYPE_3.getKey(), CompatibleMaterial.getGlassPaneForColor(color).name());
+            CONFIG.set(GLASS_TYPE_3.getKey(), getGlassPaneForColor(color).name());
         }
 
         CONFIG.setDefault("Economy.Economy",
@@ -100,5 +100,31 @@ public class Settings {
         }
 
         CONFIG.saveChanges();
+    }
+    
+    /**
+     * Convert legacy numeric color IDs to glass pane materials.
+     * This is for backward compatibility with old config files.
+     */
+    private static Material getGlassPaneForColor(int color) {
+        switch (color) {
+            case 0: return Material.WHITE_STAINED_GLASS_PANE;
+            case 1: return Material.ORANGE_STAINED_GLASS_PANE;
+            case 2: return Material.MAGENTA_STAINED_GLASS_PANE;
+            case 3: return Material.LIGHT_BLUE_STAINED_GLASS_PANE;
+            case 4: return Material.YELLOW_STAINED_GLASS_PANE;
+            case 5: return Material.LIME_STAINED_GLASS_PANE;
+            case 6: return Material.PINK_STAINED_GLASS_PANE;
+            case 7: return Material.GRAY_STAINED_GLASS_PANE;
+            case 8: return Material.LIGHT_GRAY_STAINED_GLASS_PANE;
+            case 9: return Material.CYAN_STAINED_GLASS_PANE;
+            case 10: return Material.PURPLE_STAINED_GLASS_PANE;
+            case 11: return Material.BLUE_STAINED_GLASS_PANE;
+            case 12: return Material.BROWN_STAINED_GLASS_PANE;
+            case 13: return Material.GREEN_STAINED_GLASS_PANE;
+            case 14: return Material.RED_STAINED_GLASS_PANE;
+            case 15: return Material.BLACK_STAINED_GLASS_PANE;
+            default: return Material.GRAY_STAINED_GLASS_PANE;
+        }
     }
 }

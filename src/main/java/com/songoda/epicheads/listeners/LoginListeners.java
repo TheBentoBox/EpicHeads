@@ -1,8 +1,7 @@
 package com.songoda.epicheads.listeners;
 
-import com.songoda.core.nms.Nms;
-import com.songoda.core.utils.ItemUtils;
 import com.songoda.epicheads.EpicHeads;
+import com.songoda.epicheads.utils.SkullUtils;
 import com.songoda.epicheads.database.DataHelper;
 import com.songoda.epicheads.head.Category;
 import com.songoda.epicheads.head.Head;
@@ -13,6 +12,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 
 import java.util.Optional;
 
@@ -33,12 +34,19 @@ public class LoginListeners implements Listener {
         Player player = event.getPlayer();
         HeadManager headManager = this.plugin.getHeadManager();
 
-        String encodedStr = Nms.getImplementations().getPlayer().getProfile(player).getTextureValue();
+        // Get the player's profile and extract texture value using Paper API
+        PlayerProfile profile = player.getPlayerProfile();
+        String encodedStr = profile.getProperties().stream()
+                .filter(prop -> "textures".equals(prop.getName()))
+                .map(ProfileProperty::getValue)
+                .findFirst()
+                .orElse(null);
+        
         if (encodedStr == null) {
             return;
         }
 
-        String url = ItemUtils.getDecodedTexture(encodedStr);
+        String url = SkullUtils.getDecodedTexture(encodedStr);
 
         Optional<Head> existingPlayerHead = headManager.getLocalHeads()
                 .stream()

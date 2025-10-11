@@ -8,9 +8,13 @@ import com.songoda.epicheads.head.Category;
 import com.songoda.epicheads.head.Head;
 import com.songoda.epicheads.settings.Settings;
 import com.songoda.third_party.com.cryptomorin.xseries.XMaterial;
+
+import io.papermc.paper.datacomponent.DataComponentTypes;
+
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -46,6 +50,9 @@ public class GUIOverview extends Gui {
         ItemStack glass2 = GuiUtils.getBorderItem(Settings.GLASS_TYPE_2.getMaterial());
         ItemStack glass3 = GuiUtils.getBorderItem(Settings.GLASS_TYPE_3.getMaterial());
 
+        glass2.setData(DataComponentTypes.HIDE_TOOLTIP);
+        glass3.setData(DataComponentTypes.HIDE_TOOLTIP);
+
         mirrorFill(0, 0, true, true, glass2);
         mirrorFill(1, 0, true, true, glass2);
         mirrorFill(0, 1, true, true, glass2);
@@ -61,11 +68,9 @@ public class GUIOverview extends Gui {
                 .limit((this.rows - 1) * 9)
                 .collect(Collectors.toList());
 
-        int add = 0;
+        int nextSlot = 10;
+
         for (int i = 0; i < categories.size(); i++) {
-            if (i + add == 7 || i + add == 16) {
-                add = add + 2;
-            }
 
             Category category = categories.get(i);
 
@@ -81,16 +86,21 @@ public class GUIOverview extends Gui {
             }
 
             ItemStack buttonItem = firstHead.asItemStack();
-            setButton(i + 10 + add, GuiUtils.createButtonItem(buttonItem,
+            setButton(nextSlot, GuiUtils.createButtonItem(buttonItem,
                             this.plugin.getLocale().getMessage("gui.overview.headname")
                                     .processPlaceholder("name", Color.getRandomColor() + category.getName())
                                     .getMessage(),
-                            this.plugin.getLocale().getMessage("gui.overview.headlore")
+                            Collections.singletonList(this.plugin.getLocale().getMessage("gui.overview.headlore")
                                     .processPlaceholder("count", String.format("%,d", category.getCount()))
-                                    .getMessage()),
+                                    .getMessage())),
                     (event) ->
                             this.guiManager.showGUI(this.player, new GUIHeads(this.plugin, this.player, null,
                                     GUIHeads.QueryTypes.CATEGORY, heads)));
+
+            nextSlot++;
+            if (nextSlot % 9 == 8) {
+                nextSlot += 2;
+            }
         }
 
         setButton(40, GuiUtils.createButtonItem(XMaterial.COMPASS,

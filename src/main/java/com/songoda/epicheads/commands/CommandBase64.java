@@ -1,9 +1,8 @@
 package com.songoda.epicheads.commands;
 
 import com.songoda.core.commands.AbstractCommand;
-import com.songoda.core.compatibility.CompatibleHand;
 import com.songoda.epicheads.EpicHeads;
-import com.songoda.third_party.com.cryptomorin.xseries.profiles.builder.XSkull;
+import com.songoda.epicheads.utils.SkullUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -23,12 +22,12 @@ public class CommandBase64 extends AbstractCommand {
     @Override
     protected ReturnType runCommand(CommandSender sender, String... args) {
         Player player = (Player) sender;
-        ItemStack item = CompatibleHand.MAIN_HAND.getItem(player);
+        ItemStack item = player.getInventory().getItemInMainHand();
 
         if (!item.hasItemMeta() || !(item.getItemMeta() instanceof SkullMeta)) {
             return ReturnType.FAILURE;
         }
-        String encodededStr = XSkull.of(item).getProfileValue();
+        String encodededStr = SkullUtils.getProfileValue(item);
         if (encodededStr == null) {
             return ReturnType.FAILURE;
         }

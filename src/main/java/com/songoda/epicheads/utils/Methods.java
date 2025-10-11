@@ -1,10 +1,9 @@
 package com.songoda.epicheads.utils;
 
-import com.songoda.core.compatibility.CompatibleMaterial;
 import com.songoda.core.utils.TextUtils;
 import com.songoda.epicheads.EpicHeads;
 import com.songoda.epicheads.settings.Settings;
-import com.songoda.third_party.com.cryptomorin.xseries.XMaterial;
+import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -13,9 +12,10 @@ import java.util.List;
 
 public class Methods {
     public static ItemStack createToken(int amount) {
-        ItemStack itemStack = CompatibleMaterial.getMaterial(Settings.ITEM_TOKEN_TYPE.getString()).get().parseItem();
+        Material material = Material.valueOf(Settings.ITEM_TOKEN_TYPE.getString().toUpperCase());
+        ItemStack itemStack = new ItemStack(material);
 
-        if (XMaterial.PLAYER_HEAD.isSimilar(itemStack)) {
+        if (itemStack != null && itemStack.getType() == Material.PLAYER_HEAD) {
             itemStack = EpicHeads.getInstance()
                     .getHeadManager()
                     .getHeads()

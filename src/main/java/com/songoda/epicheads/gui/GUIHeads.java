@@ -190,10 +190,14 @@ public class GUIHeads extends Gui {
             ItemStack item = head.asItemStack(favorites.contains(head.getUrl()), free);
             ItemMeta meta = item.getItemMeta();
             List<String> lore = item.getItemMeta().getLore();
+            if (lore == null) {
+                lore = new ArrayList<>();
+            }
             lore.add("");
             lore.add(this.plugin.getLocale().getMessage("gui.heads.leftclick").toText());
-            lore.add(this.plugin.getLocale().getMessage("gui.heads.rightclick").toText());
-            lore.add(this.plugin.getLocale().getMessage("gui.heads.delete").toText());
+            if (this.player.hasPermission("epicheads.delete")) {
+                lore.add(this.plugin.getLocale().getMessage("gui.heads.delete").toText());
+            }
             meta.setLore(lore);
             item.setItemMeta(meta);
 
@@ -213,42 +217,6 @@ public class GUIHeads extends Gui {
                         ePlayer.addFavorite(head.getUrl());
                     }
                     showPage();
-                    return;
-                } else if (event.clickType == ClickType.RIGHT) {
-                    // Right-click to rate head
-                    if (!event.player.hasPermission("epicheads.rate")) {
-                        this.plugin.getLocale().getMessage("event.rating.nopermission").sendPrefixedMessage(event.player);
-                        return;
-                    }
-                    exit();
-                    ChatPrompt.showPrompt(this.plugin, event.player, 
-                        this.plugin.getLocale().getMessage("event.rating.prompt").toText(), 
-                        promptEvent -> {
-                            try {
-                                int rating = Integer.parseInt(promptEvent.getMessage().trim());
-                                if (rating >= 1 && rating <= 5) {
-                                    DataHelper.addHeadRating(head.getId(), event.player.getUniqueId(), rating);
-                                    DataHelper.updateHeadRatingStats(head);
-                                    String plural = rating != 1 ? "s" : "";
-                                    this.plugin.getLocale().getMessage("event.rating.success")
-                                        .processPlaceholder("head", head.getName())
-                                        .processPlaceholder("rating", String.valueOf(rating))
-                                        .processPlaceholder("plural", plural)
-                                        .sendPrefixedMessage(event.player);
-                                } else {
-                                    this.plugin.getLocale().getMessage("event.rating.invalid").sendPrefixedMessage(event.player);
-                                }
-                            } catch (NumberFormatException e) {
-                                this.plugin.getLocale().getMessage("event.rating.invalidnumber").sendPrefixedMessage(event.player);
-                            }
-                        }).setOnClose(() -> {
-                            showPage();
-                            this.guiManager.showGUI(event.player, this);
-                        }).setOnCancel(() -> {
-                            this.plugin.getLocale().getMessage("event.rating.canceled").sendPrefixedMessage(event.player);
-                            showPage();
-                            this.guiManager.showGUI(event.player, this);
-                        });
                     return;
                 }
                 if (!free) {

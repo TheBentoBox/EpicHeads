@@ -1,10 +1,8 @@
 package com.songoda.epicheads.commands;
 
 import com.songoda.core.commands.AbstractCommand;
-import com.songoda.core.compatibility.CompatibleHand;
-import com.songoda.core.utils.ItemUtils;
 import com.songoda.epicheads.EpicHeads;
-import com.songoda.third_party.com.cryptomorin.xseries.profiles.builder.XSkull;
+import com.songoda.epicheads.utils.SkullUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -23,18 +21,18 @@ public class CommandUrl extends AbstractCommand {
     @Override
     protected AbstractCommand.ReturnType runCommand(CommandSender sender, String... args) {
         Player player = (Player) sender;
-        ItemStack item = CompatibleHand.MAIN_HAND.getItem(player);
+        ItemStack item = player.getInventory().getItemInMainHand();
 
         if (!item.hasItemMeta() || !(item.getItemMeta() instanceof SkullMeta)) {
             return ReturnType.FAILURE;
         }
 
-        String encodedStr = XSkull.of(item).getProfileValue();
+        String encodedStr = SkullUtils.getProfileValue(item);
         if (encodedStr == null) {
             return ReturnType.FAILURE;
         }
 
-        String url = ItemUtils.getDecodedTexture(encodedStr);
+        String url = SkullUtils.getDecodedTexture(encodedStr);
 
         this.plugin.getLocale().newMessage("http://textures.minecraft.net/texture/" + url).sendPrefixedMessage(player);
         return ReturnType.SUCCESS;
