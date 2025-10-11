@@ -10,6 +10,7 @@ import com.songoda.epicheads.settings.Settings;
 import com.songoda.third_party.com.cryptomorin.xseries.XMaterial;
 
 import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.TooltipDisplay;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -50,8 +51,10 @@ public class GUIOverview extends Gui {
         ItemStack glass2 = GuiUtils.getBorderItem(Settings.GLASS_TYPE_2.getMaterial());
         ItemStack glass3 = GuiUtils.getBorderItem(Settings.GLASS_TYPE_3.getMaterial());
 
-        glass2.setData(DataComponentTypes.HIDE_TOOLTIP);
-        glass3.setData(DataComponentTypes.HIDE_TOOLTIP);
+        TooltipDisplay tooltipDisplay = TooltipDisplay.tooltipDisplay().hideTooltip(true).build();
+
+        glass2.setData(DataComponentTypes.TOOLTIP_DISPLAY, tooltipDisplay);
+        glass3.setData(DataComponentTypes.TOOLTIP_DISPLAY, tooltipDisplay);
 
         mirrorFill(0, 0, true, true, glass2);
         mirrorFill(1, 0, true, true, glass2);
