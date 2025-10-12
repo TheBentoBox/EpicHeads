@@ -128,7 +128,7 @@ public class EpicHeads extends SongodaPlugin {
         pluginManager.registerEvents(new LoginListeners(this), this);
 
         int timeout = Settings.AUTOSAVE.getInt() * 60 * 20;
-        Bukkit.getScheduler().runTaskTimerAsynchronously(this, DataHelper::saveAllPlayers, timeout, timeout);
+        // Bukkit.getScheduler().runTaskTimerAsynchronously(this, DataHelper::saveAllPlayers, timeout, timeout);
     }
 
     @Override
