@@ -65,7 +65,6 @@
                                     <artifact>com.songoda:SongodaCore</artifact>
                                     <excludeDefaults>false</excludeDefaults>
                                     <includes>
-                                        <include>**/nms/v*/**</include>
                                         <include>**/third_party/net/kyori/**</include>
                                     </includes>
                                     <excludes>
