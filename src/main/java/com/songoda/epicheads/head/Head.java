@@ -1,8 +1,8 @@
 package com.songoda.epicheads.head;
 
-import com.songoda.core.utils.TextUtils;
 import com.songoda.epicheads.EpicHeads;
 import com.songoda.epicheads.settings.Settings;
+import com.songoda.epicheads.utils.Text;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -157,17 +157,17 @@ public class Head {
     }
 
     public String getHeadItemName(boolean favorite) {
-        return TextUtils.formatText((favorite ? "&6⭐ " : "") + "&9" + this.name);
+        return Text.color((favorite ? "&6⭐ " : "") + "&9" + this.name);
     }
 
     public List<String> getHeadItemLore(boolean free) {
         EpicHeads plugin = EpicHeads.getInstance();
-        double cost = Settings.HEAD_COST.getDouble();
+        double cost = Settings.headCost();
         List<String> lore = new ArrayList<>();
         
         if (!free) {
             if (cost != 0) {
-                String finalCost = Settings.ECONOMY_PLUGIN.getString().equalsIgnoreCase("item") ? cost + " " + Settings.ITEM_TOKEN_TYPE.getString() : String.valueOf(cost); 
+                String finalCost = Settings.economyPlugin().equalsIgnoreCase("item") ? cost + " " + Settings.itemTokenType() : String.valueOf(cost); 
                 lore.add(plugin.getLocale().getMessage("general.head.cost").processPlaceholder("cost", finalCost).toText());
             } else {
                 lore.add(plugin.getLocale().getMessage("general.head.cost_free").toText());

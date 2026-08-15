@@ -1,20 +1,16 @@
 package com.songoda.epicheads.utils;
 
-import com.songoda.core.hooks.economies.Economy;
-import com.songoda.third_party.com.cryptomorin.xseries.XMaterial;
-
-import org.bukkit.OfflinePlayer;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.Objects;
-
-public class ItemEconomy extends Economy {
+public class ItemEconomy {
     public static boolean isItem(ItemStack itemStack) {
-        if (itemStack == null || XMaterial.AIR.isSimilar(itemStack)) {
+        if (itemStack == null || itemStack.getType() == Material.AIR) {
             return false;
         }
 
-        if (XMaterial.PLAYER_HEAD.isSimilar(itemStack)) {
+        if (itemStack.getType() == Material.PLAYER_HEAD) {
             return SkullUtils.haveSameProfile(itemStack, Methods.createToken(1));
         }
         return itemStack.isSimilar(Methods.createToken(1));
@@ -24,22 +20,9 @@ public class ItemEconomy extends Economy {
         return (int) Math.ceil(amount);
     }
 
-    @Override
-    public double getBalance(OfflinePlayer player) {
-        int amount = 0;
-        for (ItemStack item : player.getPlayer().getInventory().getContents()) {
-            if (!isItem(item)) {
-                continue;
-            }
-            amount += item.getAmount();
-        }
-        return amount;
-    }
-
-    @Override
-    public boolean hasBalance(OfflinePlayer player, double cost) {
+    public boolean hasBalance(Player player, double cost) {
         int amount = convertAmount(cost);
-        for (ItemStack item : player.getPlayer().getInventory().getContents()) {
+        for (ItemStack item : player.getInventory().getContents()) {
             if (!isItem(item)) {
                 continue;
             }
@@ -51,10 +34,9 @@ public class ItemEconomy extends Economy {
         return false;
     }
 
-    @Override
-    public boolean withdrawBalance(OfflinePlayer player, double cost) {
+    public boolean withdrawBalance(Player player, double cost) {
         int amount = convertAmount(cost);
-        ItemStack[] contents = player.getPlayer().getInventory().getContents();
+        ItemStack[] contents = player.getInventory().getContents();
         for (int index = 0; index < contents.length; ++index) {
             ItemStack item = contents[index];
             if (!isItem(item)) {
@@ -74,23 +56,7 @@ public class ItemEconomy extends Economy {
         if (amount != 0) {
             return false;
         }
-        player.getPlayer().getInventory().setContents(contents);
-
-        return true;
-    }
-
-    @Override
-    public boolean deposit(OfflinePlayer player, double amount) {
-        return false;
-    }
-
-    @Override
-    public String getName() {
-        return "Item";
-    }
-
-    @Override
-    public boolean isEnabled() {
+        player.getInventory().setContents(contents);
         return true;
     }
 }

@@ -1,130 +1,125 @@
 package com.songoda.epicheads.settings;
 
-import com.songoda.core.configuration.Config;
-import com.songoda.core.configuration.ConfigSetting;
-import com.songoda.core.hooks.EconomyManager;
 import com.songoda.epicheads.EpicHeads;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.FileConfiguration;
 
-import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.List;
 
-public class Settings {
-    static final Config CONFIG = EpicHeads.getPlugin(EpicHeads.class).getCoreConfig();
-
-    public static final ConfigSetting AUTOSAVE = new ConfigSetting(CONFIG, "Main.Auto Save Interval In Seconds", 15,
-            "The amount of time in between saving to file.",
-            "This is purely a safety function to prevent against unplanned crashes or",
-            "restarts. With that said it is advised to keep this enabled.",
-            "If however you enjoy living on the edge, feel free to turn it off.");
-
-    public static final ConfigSetting FREE_IN_CREATIVE = new ConfigSetting(CONFIG, "Main.Heads Free In Creative Mode", false,
-            "Enabling this will make it so that a player can get all heads",
-            "for free as long as they are in the creative game mode.");
-
-    public static final ConfigSetting DROP_MOB_HEADS = new ConfigSetting(CONFIG, "Main.Drop Mob Heads", true,
-            "Should heads drop after a monster is killed?");
-
-    public static final ConfigSetting DROP_PLAYER_HEADS = new ConfigSetting(CONFIG, "Main.Drop Player Heads", true,
-            "Should a players drop their head on death?");
-
-    public static final ConfigSetting DROP_CHANCE = new ConfigSetting(CONFIG, "Main.Head Drop Chance", "25%",
-            "When a player or monster is killed what should be",
-            "the chance that their head drops?");
-
-    public static final ConfigSetting ECONOMY_PLUGIN = new ConfigSetting(CONFIG, "Economy.Economy", "Vault",
-            "Which economy plugin should be used?");
-
-    public static final ConfigSetting HEAD_COST = new ConfigSetting(CONFIG, "Economy.Head Cost", 24.99,
-            "The cost the of the head. If you wan't to use PlayerPoints",
-            "or item tokens you need to use whole numbers.");
-
-    public static final ConfigSetting ITEM_TOKEN_TYPE = new ConfigSetting(CONFIG, "Economy.Item.Type", "PLAYER_HEAD",
-            "Which item material type should be used?",
-            "You can use any of the materials from the following link:",
-            "https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Material.html");
-
-    public static final ConfigSetting ITEM_TOKEN_ID = new ConfigSetting(CONFIG, "Economy.Item.Head ID", 14395,
-            "If a player head is used as the token which head ID should be used?",
-            "This can be any head from the global database.");
-
-    public static final ConfigSetting ITEM_TOKEN_NAME = new ConfigSetting(CONFIG, "Economy.Item.Name", "&6Player Head Token",
-            "What should the token be named?");
-
-    public static final ConfigSetting ITEM_TOKEN_LORE = new ConfigSetting(CONFIG, "Economy.Item.Lore", Arrays.asList("&8Use in /Heads!"),
-            "What should the tokens lore be?");
-
-    public static final ConfigSetting LANGUGE_MODE = new ConfigSetting(CONFIG, "System.Language Mode", "en_US",
-            "The enabled language file.",
-            "More language files (if available) can be found in the plugins data folder.");
-
-    public static final ConfigSetting GLASS_TYPE_1 = new ConfigSetting(CONFIG, "Interfaces.Glass Type 1", "GRAY_STAINED_GLASS_PANE");
-    public static final ConfigSetting GLASS_TYPE_2 = new ConfigSetting(CONFIG, "Interfaces.Glass Type 2", "BLUE_STAINED_GLASS_PANE");
-    public static final ConfigSetting GLASS_TYPE_3 = new ConfigSetting(CONFIG, "Interfaces.Glass Type 3", "LIGHT_BLUE_STAINED_GLASS_PANE");
-
-    /**
-     * In order to set dynamic economy comment correctly, this needs to be
-     * called after EconomyManager load
-     */
-    public static void setupConfig() {
-        CONFIG.load();
-        CONFIG.setAutoremove(true).setAutosave(true);
-
-        // convert glass pane settings (legacy numeric color IDs to material names)
-        int color;
-        if ((color = GLASS_TYPE_1.getInt(-1)) != -1) {
-            CONFIG.set(GLASS_TYPE_1.getKey(), getGlassPaneForColor(color).name());
-        }
-        if ((color = GLASS_TYPE_2.getInt(-1)) != -1) {
-            CONFIG.set(GLASS_TYPE_2.getKey(), getGlassPaneForColor(color).name());
-        }
-        if ((color = GLASS_TYPE_3.getInt(-1)) != -1) {
-            CONFIG.set(GLASS_TYPE_3.getKey(), getGlassPaneForColor(color).name());
-        }
-
-        CONFIG.setDefault("Economy.Economy",
-                EconomyManager.getEconomy() == null ? "Vault" : EconomyManager.getEconomy().getName());
-        CONFIG.setComment("Economy.Economy", null,
-                "Which economy plugin should be used?",
-                "Supported plugins you have installed: \"" + EconomyManager.getManager().getRegisteredPlugins().stream().filter(p -> !p.equals("EpicHeads")).collect(Collectors.joining("\", \"")) + "\", \"Item\".");
-
-        // convert economy settings
-        if (CONFIG.getBoolean("Economy.Use Vault Economy") && EconomyManager.getManager().isEnabled("Vault")) {
-            CONFIG.set("Economy.Economy", "Vault");
-        } else if (CONFIG.getBoolean("Economy.Use Reserve Economy") && EconomyManager.getManager().isEnabled("Reserve")) {
-            CONFIG.set("Economy.Economy", "Reserve");
-        } else if (CONFIG.getBoolean("Economy.Use Player Points Economy") && EconomyManager.getManager().isEnabled("PlayerPoints")) {
-            CONFIG.set("Economy.Economy", "PlayerPoints");
-        } else if (CONFIG.getBoolean("Economy.Use Item Economy")) {
-            CONFIG.set("Economy.Economy", "Item");
-        }
-
-        CONFIG.saveChanges();
+public final class Settings {
+    private Settings() {
     }
-    
-    /**
-     * Convert legacy numeric color IDs to glass pane materials.
-     * This is for backward compatibility with old config files.
-     */
-    private static Material getGlassPaneForColor(int color) {
-        switch (color) {
-            case 0: return Material.WHITE_STAINED_GLASS_PANE;
-            case 1: return Material.ORANGE_STAINED_GLASS_PANE;
-            case 2: return Material.MAGENTA_STAINED_GLASS_PANE;
-            case 3: return Material.LIGHT_BLUE_STAINED_GLASS_PANE;
-            case 4: return Material.YELLOW_STAINED_GLASS_PANE;
-            case 5: return Material.LIME_STAINED_GLASS_PANE;
-            case 6: return Material.PINK_STAINED_GLASS_PANE;
-            case 7: return Material.GRAY_STAINED_GLASS_PANE;
-            case 8: return Material.LIGHT_GRAY_STAINED_GLASS_PANE;
-            case 9: return Material.CYAN_STAINED_GLASS_PANE;
-            case 10: return Material.PURPLE_STAINED_GLASS_PANE;
-            case 11: return Material.BLUE_STAINED_GLASS_PANE;
-            case 12: return Material.BROWN_STAINED_GLASS_PANE;
-            case 13: return Material.GREEN_STAINED_GLASS_PANE;
-            case 14: return Material.RED_STAINED_GLASS_PANE;
-            case 15: return Material.BLACK_STAINED_GLASS_PANE;
-            default: return Material.GRAY_STAINED_GLASS_PANE;
+
+    private static FileConfiguration config() {
+        return EpicHeads.getInstance().getConfig();
+    }
+
+    public static int autosaveSeconds() {
+        return config().getInt("Main.Auto Save Interval In Seconds", 15);
+    }
+
+    public static boolean freeInCreative() {
+        return config().getBoolean("Main.Heads Free In Creative Mode", false);
+    }
+
+    public static boolean dropMobHeads() {
+        return config().getBoolean("Main.Drop Mob Heads", true);
+    }
+
+    public static boolean dropPlayerHeads() {
+        return config().getBoolean("Main.Drop Player Heads", true);
+    }
+
+    public static String dropChance() {
+        return config().getString("Main.Head Drop Chance", "25%");
+    }
+
+    public static String economyPlugin() {
+        return config().getString("Economy.Economy", "Vault");
+    }
+
+    public static double headCost() {
+        return config().getDouble("Economy.Head Cost", 24.99);
+    }
+
+    public static String itemTokenType() {
+        return config().getString("Economy.Item.Type", "PLAYER_HEAD");
+    }
+
+    public static int itemTokenId() {
+        return config().getInt("Economy.Item.Head ID", 14395);
+    }
+
+    public static String itemTokenName() {
+        return config().getString("Economy.Item.Name", "&6Player Head Token");
+    }
+
+    public static List<String> itemTokenLore() {
+        return config().getStringList("Economy.Item.Lore");
+    }
+
+    public static String languageMode() {
+        return config().getString("System.Language Mode", "en_US");
+    }
+
+    public static Material glassType(int index) {
+        String key = "Interfaces.Glass Type " + index;
+        String value = config().getString(key, index == 1 ? "GRAY_STAINED_GLASS_PANE"
+                : index == 2 ? "BLUE_STAINED_GLASS_PANE" : "LIGHT_BLUE_STAINED_GLASS_PANE");
+        try {
+            int color = Integer.parseInt(value);
+            return glassPaneForColor(color);
+        } catch (NumberFormatException ignored) {
         }
+        try {
+            return Material.valueOf(value.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return Material.GRAY_STAINED_GLASS_PANE;
+        }
+    }
+
+    public static void setupConfig(EpicHeads plugin) {
+        plugin.saveDefaultConfig();
+        plugin.reloadConfig();
+        FileConfiguration config = plugin.getConfig();
+
+        migrateGlass(config, "Interfaces.Glass Type 1");
+        migrateGlass(config, "Interfaces.Glass Type 2");
+        migrateGlass(config, "Interfaces.Glass Type 3");
+        plugin.saveConfig();
+    }
+
+    private static void migrateGlass(FileConfiguration config, String key) {
+        String value = config.getString(key);
+        if (value == null) {
+            return;
+        }
+        try {
+            int color = Integer.parseInt(value);
+            config.set(key, glassPaneForColor(color).name());
+        } catch (NumberFormatException ignored) {
+        }
+    }
+
+    private static Material glassPaneForColor(int color) {
+        return switch (color) {
+            case 0 -> Material.WHITE_STAINED_GLASS_PANE;
+            case 1 -> Material.ORANGE_STAINED_GLASS_PANE;
+            case 2 -> Material.MAGENTA_STAINED_GLASS_PANE;
+            case 3 -> Material.LIGHT_BLUE_STAINED_GLASS_PANE;
+            case 4 -> Material.YELLOW_STAINED_GLASS_PANE;
+            case 5 -> Material.LIME_STAINED_GLASS_PANE;
+            case 6 -> Material.PINK_STAINED_GLASS_PANE;
+            case 7 -> Material.GRAY_STAINED_GLASS_PANE;
+            case 8 -> Material.LIGHT_GRAY_STAINED_GLASS_PANE;
+            case 9 -> Material.CYAN_STAINED_GLASS_PANE;
+            case 10 -> Material.PURPLE_STAINED_GLASS_PANE;
+            case 11 -> Material.BLUE_STAINED_GLASS_PANE;
+            case 12 -> Material.BROWN_STAINED_GLASS_PANE;
+            case 13 -> Material.GREEN_STAINED_GLASS_PANE;
+            case 14 -> Material.RED_STAINED_GLASS_PANE;
+            case 15 -> Material.BLACK_STAINED_GLASS_PANE;
+            default -> Material.GRAY_STAINED_GLASS_PANE;
+        };
     }
 }

@@ -1,11 +1,13 @@
 package com.songoda.epicheads.listeners;
 
-import com.songoda.core.utils.HeadType;
-import com.songoda.core.utils.TextUtils;
-import com.songoda.epicheads.utils.SkullUtils;
 import com.songoda.epicheads.EpicHeads;
 import com.songoda.epicheads.head.Head;
+import com.songoda.epicheads.head.MobHeadTextures;
 import com.songoda.epicheads.settings.Settings;
+import com.songoda.epicheads.utils.SkullUtils;
+import com.songoda.epicheads.utils.Text;
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import org.bukkit.Material;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
@@ -14,8 +16,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
 
 import java.util.ArrayList;
 import java.util.Optional;
@@ -29,31 +29,30 @@ public class DeathListeners implements Listener {
 
     @EventHandler
     public void onDeath(EntityDeathEvent event) {
-        double dropChance = Double.parseDouble(Settings.DROP_CHANCE.getString().replace("%", ""));
+        double dropChance = Double.parseDouble(Settings.dropChance().replace("%", ""));
         double rand = Math.random() * 100;
         if (rand - dropChance < 0 || dropChance == 100) {
 
             ItemStack itemNew = null;
-            if (event.getEntity() instanceof Player) {
-                if (!Settings.DROP_PLAYER_HEADS.getBoolean()) {
+            if (event.getEntity() instanceof Player player) {
+                if (!Settings.dropPlayerHeads()) {
                     return;
                 }
 
-                // Get the player's profile and extract texture value using Paper API
                 ItemStack playerHead = new ItemStack(Material.PLAYER_HEAD);
-                PlayerProfile profile = ((Player) event.getEntity()).getPlayerProfile();
-                
+                PlayerProfile profile = player.getPlayerProfile();
+
                 String encodedStr = profile.getProperties().stream()
                         .filter(prop -> "textures".equals(prop.getName()))
                         .map(ProfileProperty::getValue)
                         .findFirst()
                         .orElse(null);
-                
+
                 if (encodedStr == null) {
-                    itemNew = new ItemStack(Material.PLAYER_HEAD);
+                    itemNew = playerHead;
 
                     ItemMeta meta = itemNew.getItemMeta();
-                    meta.setDisplayName(TextUtils.formatText("&9" + ((Player) event.getEntity()).getDisplayName()));
+                    meta.setDisplayName(Text.color("&9" + player.getDisplayName()));
                     itemNew.setItemMeta(meta);
                 } else {
                     String url = SkullUtils.getDecodedTexture(encodedStr);
@@ -66,13 +65,17 @@ public class DeathListeners implements Listener {
                     }
                 }
             } else {
-                if (!Settings.DROP_MOB_HEADS.getBoolean() || event.getEntity() instanceof ArmorStand) {
+                if (!Settings.dropMobHeads() || event.getEntity() instanceof ArmorStand) {
                     return;
                 }
 
-                Head head = new Head(-1, TextUtils.formatText(event.getEntity().getType().name().toLowerCase()
-                        .replace("_", " "), true),
-                        HeadType.valueOf(event.getEntity().getType().name()).getUrl(),
+                Optional<MobHeadTextures> texture = MobHeadTextures.from(event.getEntity().getType());
+                if (texture.isEmpty()) {
+                    return;
+                }
+
+                Head head = new Head(-1, Text.titleCase(event.getEntity().getType().name()),
+                        texture.get().getUrlHash(),
                         null, true);
                 itemNew = head.asItemStack();
             }

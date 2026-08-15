@@ -1,21 +1,24 @@
 package com.songoda.epicheads.utils.storage;
 
-import com.songoda.core.configuration.Config;
 import com.songoda.epicheads.EpicHeads;
 import com.songoda.epicheads.head.Head;
 import com.songoda.epicheads.players.EPlayer;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 public abstract class Storage {
     protected final EpicHeads instance;
-    protected final Config dataFile;
+    protected final File file;
+    protected final FileConfiguration dataFile;
 
     public Storage(EpicHeads instance) {
         this.instance = instance;
-        this.dataFile = (new Config(instance, "data.yml"))
-                .setAutosave(true);
-        this.dataFile.load();
+        this.file = new File(instance.getDataFolder(), "data.yml");
+        this.dataFile = YamlConfiguration.loadConfiguration(this.file);
     }
 
     public abstract boolean containsGroup(String group);
@@ -25,7 +28,6 @@ public abstract class Storage {
     public abstract void prepareSaveItem(String group, StorageItem... items);
 
     public void updateData(EpicHeads plugin) {
-        // Save game data
         for (EPlayer player : this.instance.getPlayerManager().getPlayers()) {
             prepareSaveItem("players", new StorageItem("uuid", player.getUuid().toString()),
                     new StorageItem("favorites", player.getFavorites()));
@@ -51,4 +53,11 @@ public abstract class Storage {
 
     public abstract void closeConnection();
 
+    protected void saveFile() {
+        try {
+            this.dataFile.save(this.file);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
 }

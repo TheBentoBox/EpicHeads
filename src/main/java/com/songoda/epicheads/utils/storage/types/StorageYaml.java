@@ -113,7 +113,7 @@ public class StorageYaml extends Storage {
                 this.dataFile.set(entry.getKey(), entry.getValue());
             }
 
-            this.dataFile.save();
+            saveFile();
         } catch (NullPointerException e) {
             e.printStackTrace();
         }
@@ -143,7 +143,7 @@ public class StorageYaml extends Storage {
 
     @Override
     public void closeConnection() {
-        this.dataFile.saveChanges();
+        saveFile();
     }
 
     private static void copyFile(File source, File dest) throws IOException {

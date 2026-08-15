@@ -1,16 +1,11 @@
 package com.songoda.epicheads.gui;
 
-import com.songoda.core.gui.Gui;
-import com.songoda.core.gui.GuiUtils;
 import com.songoda.epicheads.EpicHeads;
 import com.songoda.epicheads.head.Category;
 import com.songoda.epicheads.head.Head;
+import com.songoda.epicheads.menu.Menu;
 import com.songoda.epicheads.settings.Settings;
-import com.songoda.third_party.com.cryptomorin.xseries.XMaterial;
-
-import io.papermc.paper.datacomponent.DataComponentTypes;
-import io.papermc.paper.datacomponent.item.TooltipDisplay;
-
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -19,85 +14,82 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 
-public class GUIOverview extends Gui {
+public class GUIOverview {
     private final EpicHeads plugin;
     private final Player player;
+    private final Menu menu;
 
     public GUIOverview(Player player) {
         this.plugin = EpicHeads.getInstance();
         this.player = player;
-
-        this.setDefaultItem(null);
-        this.setRows(5);
-        this.setTitle(this.plugin.getLocale().getMessage("gui.overview.title")
+        this.menu = new Menu(player, 5, this.plugin.getLocale().getMessage("gui.overview.title")
                 .processPlaceholder("count", this.plugin.getHeadManager().getHeads().size())
-                .getMessage());
-        this.setPrevPage(this.rows - 1, 1, GuiUtils.createButtonItem(XMaterial.ARROW,
-                this.plugin.getLocale().getMessage("gui.general.previous").getMessage()));
-        this.setNextPage(this.rows - 1, 7, GuiUtils.createButtonItem(XMaterial.ARROW,
-                this.plugin.getLocale().getMessage("gui.general.next").getMessage()));
-        this.setOnPage((event) -> showPage());
+                .toText());
+        this.menu.setPageRenderer(this::showPage);
         showPage();
+        this.menu.open();
     }
 
     private void showPage() {
-        setButton(4, GuiUtils.createButtonItem(XMaterial.GOLDEN_APPLE,
-                        this.plugin.getLocale().getMessage("gui.overview.viewfavorites").getMessage(),
+        this.menu.setButton(4, Menu.named(Material.GOLDEN_APPLE,
+                        this.plugin.getLocale().getMessage("gui.overview.viewfavorites").toText(),
                         this.plugin.getLocale().getMessage("gui.overview.favoriteslore").getMessageLines('|')),
-                (event) -> this.guiManager.showGUI(this.player, new GUIHeads(this.plugin, this.player, null, GUIHeads.QueryTypes.FAVORITES,
-                        this.plugin.getPlayerManager().getPlayer(this.player).getFavoritesAsHeads())));
+                event -> new GUIHeads(this.plugin, this.player, null, GUIHeads.QueryTypes.FAVORITES,
+                        this.plugin.getPlayerManager().getPlayer(this.player).getFavoritesAsHeads()));
 
-        ItemStack glass2 = GuiUtils.getBorderItem(Settings.GLASS_TYPE_2.getMaterial());
-        ItemStack glass3 = GuiUtils.getBorderItem(Settings.GLASS_TYPE_3.getMaterial());
-
-        TooltipDisplay tooltipDisplay = TooltipDisplay.tooltipDisplay().hideTooltip(true).build();
-
-        glass2.setData(DataComponentTypes.TOOLTIP_DISPLAY, tooltipDisplay);
-        glass3.setData(DataComponentTypes.TOOLTIP_DISPLAY, tooltipDisplay);
-
-        mirrorFill(0, 0, true, true, glass2);
-        mirrorFill(1, 0, true, true, glass2);
-        mirrorFill(0, 1, true, true, glass2);
-        mirrorFill(0, 2, true, true, glass3);
-
-        int numTemplates = this.plugin.getHeadManager().getCategories().size();
-        this.pages = (int) Math.floor(numTemplates / 21.0);
+        ItemStack glass2 = Menu.border(Settings.glassType(2));
+        ItemStack glass3 = Menu.border(Settings.glassType(3));
+        int lastRow = 4 * 9;
+        this.menu.setItem(0, glass2.clone());
+        this.menu.setItem(8, glass2.clone());
+        this.menu.setItem(lastRow, glass2.clone());
+        this.menu.setItem(lastRow + 8, glass2.clone());
+        this.menu.setItem(9, glass2.clone());
+        this.menu.setItem(17, glass2.clone());
+        this.menu.setItem(27, glass2.clone());
+        this.menu.setItem(35, glass2.clone());
+        this.menu.setItem(1, glass2.clone());
+        this.menu.setItem(7, glass2.clone());
+        this.menu.setItem(lastRow + 1, glass2.clone());
+        this.menu.setItem(lastRow + 7, glass2.clone());
+        this.menu.setItem(2, glass3.clone());
+        this.menu.setItem(6, glass3.clone());
+        this.menu.setItem(lastRow + 2, glass3.clone());
+        this.menu.setItem(lastRow + 6, glass3.clone());
 
         List<Category> categories = this.plugin.getHeadManager()
                 .getCategories()
                 .stream()
-                .skip((this.page - 1) * (this.rows - 1) * 9)
-                .limit((this.rows - 1) * 9)
+                .filter(category -> this.player.hasPermission("epicheads.category." + category.getName().replace(" ", "_")))
+                .filter(category -> !this.plugin.getHeadManager().getHeadsByCategory(category).isEmpty())
                 .collect(Collectors.toList());
 
+        this.menu.setPages((int) Math.ceil(categories.size() / 21.0));
+        int skip = (this.menu.getPage() - 1) * 21;
+        List<Category> pageCategories = categories.stream().skip(skip).limit(21).collect(Collectors.toList());
+
         int nextSlot = 10;
-
-        for (int i = 0; i < categories.size(); i++) {
-
-            Category category = categories.get(i);
-
-            List<Head> heads = this.plugin.getHeadManager().getHeadsByCategory(category);
-            if (heads.isEmpty()) {
+        for (int slot = 10; slot <= 34; slot++) {
+            int col = slot % 9;
+            if (col == 0 || col == 8) {
                 continue;
             }
+            this.menu.clearSlot(slot);
+        }
 
+        for (Category category : pageCategories) {
+            List<Head> heads = this.plugin.getHeadManager().getHeadsByCategory(category);
             Head firstHead = heads.get(0);
 
-            if (!this.player.hasPermission("epicheads.category." + category.getName().replace(" ", "_"))) {
-                continue;
-            }
-
             ItemStack buttonItem = firstHead.asItemStack();
-            setButton(nextSlot, GuiUtils.createButtonItem(buttonItem,
+            this.menu.setButton(nextSlot, Menu.named(buttonItem,
                             this.plugin.getLocale().getMessage("gui.overview.headname")
                                     .processPlaceholder("name", Color.getRandomColor() + category.getName())
-                                    .getMessage(),
+                                    .toText(),
                             Collections.singletonList(this.plugin.getLocale().getMessage("gui.overview.headlore")
                                     .processPlaceholder("count", String.format("%,d", category.getCount()))
-                                    .getMessage())),
-                    (event) ->
-                            this.guiManager.showGUI(this.player, new GUIHeads(this.plugin, this.player, null,
-                                    GUIHeads.QueryTypes.CATEGORY, heads)));
+                                    .toText())),
+                    event -> new GUIHeads(this.plugin, this.player, null, GUIHeads.QueryTypes.CATEGORY, heads));
 
             nextSlot++;
             if (nextSlot % 9 == 8) {
@@ -105,10 +97,24 @@ public class GUIOverview extends Gui {
             }
         }
 
-        setButton(40, GuiUtils.createButtonItem(XMaterial.COMPASS,
-                        this.plugin.getLocale().getMessage("gui.overview.search").getMessage()),
-                (event) -> GUIHeads.doSearch(this.plugin, this, this.guiManager, event.player));
+        if (this.menu.getPage() > 1) {
+            this.menu.setButton(37, Menu.named(Material.ARROW,
+                    this.plugin.getLocale().getMessage("gui.general.previous").toText()),
+                    event -> this.menu.changePage(-1));
+        } else {
+            this.menu.clearSlot(37);
+        }
+        if (this.menu.getPage() < this.menu.getPages()) {
+            this.menu.setButton(43, Menu.named(Material.ARROW,
+                    this.plugin.getLocale().getMessage("gui.general.next").toText()),
+                    event -> this.menu.changePage(1));
+        } else {
+            this.menu.clearSlot(43);
+        }
 
+        this.menu.setButton(40, Menu.named(Material.COMPASS,
+                        this.plugin.getLocale().getMessage("gui.overview.search").toText()),
+                event -> GUIHeads.doSearch(this.plugin, this.player));
     }
 
     public enum Color {

@@ -1,290 +1,271 @@
 package com.songoda.epicheads.database;
 
-import com.songoda.core.database.DataManager;
-import com.songoda.core.database.DatabaseConnector;
-import com.songoda.core.database.DatabaseType;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.songoda.epicheads.EpicHeads;
 import com.songoda.epicheads.head.Head;
 import com.songoda.epicheads.players.EPlayer;
-import com.songoda.third_party.org.jooq.Query;
-import com.songoda.third_party.org.jooq.impl.DSL;
-import com.google.common.reflect.TypeToken;
-import com.google.gson.Gson;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.lang.reflect.Type;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 
 public class DataHelper {
+    private static final Gson GSON = new Gson();
+    private static final Type STRING_LIST = new TypeToken<List<String>>() {
+    }.getType();
 
-    private static DataManager dataManager;
-    private static DatabaseConnector databaseConnector;
+    private static Database database;
+    private static EpicHeads plugin;
 
-    public static void init(DataManager dataManager) {
-        DataHelper.dataManager = dataManager;
-        DataHelper.databaseConnector = dataManager.getDatabaseConnector();
+    public static void init(EpicHeads plugin, Database database) {
+        DataHelper.plugin = plugin;
+        DataHelper.database = database;
     }
 
-    private static String getTablePrefix() {
-        return dataManager.getTablePrefix();
+    public static boolean isInitialized() {
+        return database != null;
+    }
+
+    private static void runSync(Runnable task) {
+        if (Bukkit.isPrimaryThread()) {
+            task.run();
+        } else {
+            Bukkit.getScheduler().runTask(plugin, task);
+        }
     }
 
     public static void updatePlayer(EPlayer ePlayer) {
-        dataManager.getAsyncPool().submit(() -> {
-            Gson gson = new Gson();
-            try (Connection connection = databaseConnector.getConnection()) {
-                String updatePlayer = "UPDATE " + getTablePrefix() + "players SET favorites = ? WHERE uuid = ?";
-                try (PreparedStatement statement = connection.prepareStatement(updatePlayer)) {
-                    statement.setString(1, gson.toJson(ePlayer.getFavorites()));
-                    statement.setString(2, ePlayer.getUuid().toString());
-                    statement.executeUpdate();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "UPDATE " + Database.TABLE_PREFIX + "players SET favorites = ? WHERE uuid = ?")) {
+                statement.setString(1, GSON.toJson(ePlayer.getFavorites()));
+                statement.setString(2, ePlayer.getUuid().toString());
+                statement.executeUpdate();
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to update player", ex);
             }
         });
     }
 
     public static void getPlayer(Player player, Consumer<EPlayer> callback) {
-        Gson gson = new Gson();
-        dataManager.getAsyncPool().submit(() -> {
-            try (Connection connection = databaseConnector.getConnection()) {
-                String sql;
-                boolean isH2 = databaseConnector.getType().equals(DatabaseType.H2);
-
-                if (!isH2) {
-                    sql = "INSERT INTO " + getTablePrefix() + "players (uuid, favorites) VALUES (?, ?) ON DUPLICATE KEY UPDATE favorites = ?";
-                } else {
-                    sql = "MERGE INTO " + getTablePrefix() + "players (uuid, favorites) KEY(uuid) VALUES (?, ?)";
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection()) {
+                try (PreparedStatement insert = connection.prepareStatement(
+                        "INSERT OR IGNORE INTO " + Database.TABLE_PREFIX + "players (uuid, favorites) VALUES (?, ?)")) {
+                    insert.setString(1, player.getUniqueId().toString());
+                    insert.setString(2, GSON.toJson(new ArrayList<>()));
+                    insert.executeUpdate();
                 }
 
-                String selectPlayers = "SELECT * FROM " + getTablePrefix() + "players WHERE uuid = ?";
-
-                try (PreparedStatement statement = connection.prepareStatement(sql);
-                     PreparedStatement selectStatement = connection.prepareStatement(selectPlayers)) {
-                    statement.setString(1, player.getUniqueId().toString());
-                    statement.setString(2, gson.toJson(new ArrayList<>()));
-                    if (!isH2) {
-                        statement.setString(3, gson.toJson(new ArrayList<>()));
-                    }
-                    statement.execute();
-
-                    selectStatement.setString(1, player.getUniqueId().toString());
-                    ResultSet result = selectStatement.executeQuery();
+                try (PreparedStatement select = connection.prepareStatement(
+                        "SELECT * FROM " + Database.TABLE_PREFIX + "players WHERE uuid = ?")) {
+                    select.setString(1, player.getUniqueId().toString());
+                    ResultSet result = select.executeQuery();
                     if (result.next()) {
                         UUID uuid = UUID.fromString(result.getString("uuid"));
-                        List<String> favorites = gson.fromJson(result.getString("favorites"), new TypeToken<List<String>>() {
-                        }.getType());
-
+                        List<String> favorites = GSON.fromJson(result.getString("favorites"), STRING_LIST);
                         EPlayer ePlayer = new EPlayer(uuid, favorites);
-                        callback.accept(ePlayer);
+                        runSync(() -> callback.accept(ePlayer));
                     }
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to load player", ex);
             }
         });
     }
 
     public static void migratePlayers(List<EPlayer> players) {
-        Gson gson = new Gson();
-        dataManager.getAsyncPool().submit(() -> {
-            try (Connection connection = databaseConnector.getConnection()) {
-                String insertPlayer = "REPLACE INTO " + getTablePrefix() + "players (uuid, favorites) VALUES (?, ?)";
-                try (PreparedStatement insert = connection.prepareStatement(insertPlayer)) {
-                    for (EPlayer player : players) {
-                        insert.setString(1, player.getUuid().toString());
-                        insert.setString(2, gson.toJson(player.getFavorites()));
-                        insert.addBatch();
-                    }
-                    insert.executeBatch();
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection();
+                 PreparedStatement insert = connection.prepareStatement(
+                         "INSERT OR REPLACE INTO " + Database.TABLE_PREFIX + "players (uuid, favorites) VALUES (?, ?)")) {
+                for (EPlayer player : players) {
+                    insert.setString(1, player.getUuid().toString());
+                    insert.setString(2, GSON.toJson(player.getFavorites()));
+                    insert.addBatch();
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
+                insert.executeBatch();
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to migrate players", ex);
             }
         });
     }
 
     public static void createLocalHead(Head head) {
-        dataManager.getAsyncPool().submit(() -> {
-            dataManager.getDatabaseConnector().connectDSL(dslContext -> {
-                dslContext.insertInto(DSL.table(getTablePrefix() + "local_heads"),
-                        DSL.field("category"),
-                        DSL.field("name"),
-                        DSL.field("url"))
-                        .values(head.getCategory().getName(), head.getName(), head.getUrl())
-                        .execute();
-                head.setId(dslContext.lastID().intValue());
-            });
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "INSERT INTO " + Database.TABLE_PREFIX + "local_heads (category, name, url) VALUES (?, ?, ?)",
+                         Statement.RETURN_GENERATED_KEYS)) {
+                statement.setString(1, head.getCategory().getName());
+                statement.setString(2, head.getName());
+                statement.setString(3, head.getUrl());
+                statement.executeUpdate();
+                ResultSet keys = statement.getGeneratedKeys();
+                if (keys.next()) {
+                    head.setId(keys.getInt(1));
+                }
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to create local head", ex);
+            }
         });
     }
 
     public static void getLocalHeads(Consumer<List<Head>> callback) {
-        dataManager.getAsyncPool().submit(() -> {
-            dataManager.getDatabaseConnector().connectDSL(dslContext -> {
-                List<Head> heads = new ArrayList<>();
-                dslContext.select()
-                        .from(DSL.table(getTablePrefix() + "local_heads"))
-                        .orderBy(DSL.field("id asc"))
-                        .fetch()
-                        .forEach(record -> {
-                            int id = record.get(DSL.field("id", Integer.class));
-                            String categoryString = record.get(DSL.field("category", String.class));
-                            String name = record.get(DSL.field("name", String.class));
-                            String url = record.get(DSL.field("url", String.class));
-
-                            Head head = new Head(id,
-                                    name,
-                                    url,
-                                    EpicHeads.getInstance().getHeadManager().getOrCreateCategoryByName(categoryString),
-                                    true);
-
-                            heads.add(head);
-                        });
-                callback.accept(heads);
-            });
+        database.async().submit(() -> {
+            List<Head> heads = new ArrayList<>();
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "SELECT * FROM " + Database.TABLE_PREFIX + "local_heads ORDER BY id ASC");
+                 ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    int id = result.getInt("id");
+                    String categoryString = result.getString("category");
+                    String name = result.getString("name");
+                    String url = result.getString("url");
+                    Head head = new Head(id, name, url,
+                            plugin.getHeadManager().getOrCreateCategoryByName(categoryString), true);
+                    heads.add(head);
+                }
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to load local heads", ex);
+            }
+            runSync(() -> callback.accept(heads));
         });
     }
 
     public static void updateLocalHead(Head head) {
-        dataManager.getAsyncPool().submit(() -> {
-            dataManager.getDatabaseConnector().connectDSL(dslContext -> {
-                dslContext.update(DSL.table(getTablePrefix() + "local_heads"))
-                        .set(DSL.field("name"), head.getName())
-                        .set(DSL.field("url"), head.getUrl())
-                        .where(DSL.field("id").eq(head.getId()))
-                        .execute();
-            });
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "UPDATE " + Database.TABLE_PREFIX + "local_heads SET name = ?, url = ? WHERE id = ?")) {
+                statement.setString(1, head.getName());
+                statement.setString(2, head.getUrl());
+                statement.setInt(3, head.getId());
+                statement.executeUpdate();
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to update local head", ex);
+            }
         });
     }
 
     public static void disableHead(Head head) {
-        dataManager.getAsyncPool().submit(() -> {
-            dataManager.getDatabaseConnector().connectDSL(dslContext -> {
-                dslContext.insertInto(DSL.table(getTablePrefix() + "disabled_heads"),
-                        DSL.field("id"))
-                        .values(head.getId())
-                        .execute();
-            });
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "INSERT OR IGNORE INTO " + Database.TABLE_PREFIX + "disabled_heads (id) VALUES (?)")) {
+                statement.setInt(1, head.getId());
+                statement.executeUpdate();
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to disable head", ex);
+            }
         });
     }
 
     public static void migrateDisabledHead(List<Integer> heads) {
-        dataManager.getAsyncPool().submit(() -> {
-            dataManager.getDatabaseConnector().connectDSL(dslContext -> {
-                dslContext.insertInto(DSL.table(getTablePrefix() + "disabled_heads"),
-                        DSL.field("id"))
-                        .values(heads)
-                        .execute();
-            });
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "INSERT OR IGNORE INTO " + Database.TABLE_PREFIX + "disabled_heads (id) VALUES (?)")) {
+                for (int id : heads) {
+                    statement.setInt(1, id);
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to migrate disabled heads", ex);
+            }
         });
     }
 
     public static void getDisabledHeads(Consumer<List<Integer>> callback) {
-        dataManager.getAsyncPool().submit(() -> {
-            dataManager.getDatabaseConnector().connectDSL(dslContext -> {
-                List<Integer> heads = new ArrayList<>();
-                dslContext.select()
-                        .from(DSL.table(getTablePrefix() + "disabled_heads"))
-                        .fetch()
-                        .forEach(record -> {
-                            int id = record.get(DSL.field("id", Integer.class));
-                            heads.add(id);
-                        });
-                callback.accept(heads);
-            });
+        database.async().submit(() -> {
+            List<Integer> heads = new ArrayList<>();
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "SELECT id FROM " + Database.TABLE_PREFIX + "disabled_heads");
+                 ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    heads.add(result.getInt("id"));
+                }
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to load disabled heads", ex);
+            }
+            runSync(() -> callback.accept(heads));
         });
     }
 
     public static void saveAllPlayers() {
-        Gson gson = new Gson();
-        dataManager.getAsyncPool().submit(() -> {
-            dataManager.getDatabaseConnector().connectDSL(dslContext -> {
-                List<Query> queries = new ArrayList<>();
-                for (EPlayer player : EpicHeads.getInstance().getPlayerManager().getPlayers()) {
-                    queries.add(dslContext.update(DSL.table(getTablePrefix() + "players"))
-                            .set(DSL.field("favorites"), gson.toJson(player.getFavorites()))
-                            .where(DSL.field("uuid").eq(player.getUuid().toString())));
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "UPDATE " + Database.TABLE_PREFIX + "players SET favorites = ? WHERE uuid = ?")) {
+                for (EPlayer player : plugin.getPlayerManager().getPlayers()) {
+                    statement.setString(1, GSON.toJson(player.getFavorites()));
+                    statement.setString(2, player.getUuid().toString());
+                    statement.addBatch();
                 }
-            });
+                statement.executeBatch();
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to save players", ex);
+            }
         });
     }
 
     public static void addHeadRating(int headId, UUID playerUuid, int rating) {
-        dataManager.getAsyncPool().submit(() -> {
-            try (Connection connection = databaseConnector.getConnection()) {
-                String sql = "INSERT INTO " + getTablePrefix() + "head_ratings (head_id, player_uuid, rating) " +
-                        "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rating = ?, rated_at = CURRENT_TIMESTAMP";
-                try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                    statement.setInt(1, headId);
-                    statement.setString(2, playerUuid.toString());
-                    statement.setInt(3, rating);
-                    statement.setInt(4, rating);
-                    statement.executeUpdate();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "INSERT INTO " + Database.TABLE_PREFIX + "head_ratings (head_id, player_uuid, rating) "
+                                 + "VALUES (?, ?, ?) ON CONFLICT(head_id, player_uuid) DO UPDATE SET rating = excluded.rating, "
+                                 + "rated_at = CURRENT_TIMESTAMP")) {
+                statement.setInt(1, headId);
+                statement.setString(2, playerUuid.toString());
+                statement.setInt(3, rating);
+                statement.executeUpdate();
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to add head rating", ex);
             }
         });
     }
 
     public static void getHeadRatings(int headId, Consumer<Double> averageCallback, Consumer<Integer> totalCallback) {
-        dataManager.getAsyncPool().submit(() -> {
-            try (Connection connection = databaseConnector.getConnection()) {
-                String sql = "SELECT AVG(rating) as avg_rating, COUNT(*) as total_ratings " +
-                        "FROM " + getTablePrefix() + "head_ratings WHERE head_id = ?";
-                try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                    statement.setInt(1, headId);
-                    ResultSet result = statement.executeQuery();
-                    if (result.next()) {
-                        double avgRating = result.getDouble("avg_rating");
-                        int totalRatings = result.getInt("total_ratings");
+        database.async().submit(() -> {
+            try (Connection connection = database.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "SELECT AVG(rating) as avg_rating, COUNT(*) as total_ratings "
+                                 + "FROM " + Database.TABLE_PREFIX + "head_ratings WHERE head_id = ?")) {
+                statement.setInt(1, headId);
+                ResultSet result = statement.executeQuery();
+                if (result.next()) {
+                    double avgRating = result.getDouble("avg_rating");
+                    int totalRatings = result.getInt("total_ratings");
+                    runSync(() -> {
                         averageCallback.accept(avgRating);
                         totalCallback.accept(totalRatings);
-                    }
+                    });
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    public static void getPlayerHeadRating(int headId, UUID playerUuid, Consumer<Integer> callback) {
-        dataManager.getAsyncPool().submit(() -> {
-            try (Connection connection = databaseConnector.getConnection()) {
-                String sql = "SELECT rating FROM " + getTablePrefix() + "head_ratings " +
-                        "WHERE head_id = ? AND player_uuid = ?";
-                try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                    statement.setInt(1, headId);
-                    statement.setString(2, playerUuid.toString());
-                    ResultSet result = statement.executeQuery();
-                    if (result.next()) {
-                        callback.accept(result.getInt("rating"));
-                    } else {
-                        callback.accept(0); // No rating found
-                    }
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-                callback.accept(0);
+            } catch (SQLException ex) {
+                plugin.getLogger().log(Level.WARNING, "Failed to load head ratings", ex);
             }
         });
     }
 
     public static void updateHeadRatingStats(Head head) {
-        getHeadRatings(head.getId(), 
-            avgRating -> head.setAverageRating(avgRating),
-            totalRatings -> head.setTotalRatings(totalRatings)
-        );
-    }
-
-    public static boolean isInitialized() {
-        return dataManager != null;
+        getHeadRatings(head.getId(),
+                head::setAverageRating,
+                head::setTotalRatings);
     }
 }
