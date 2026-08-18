@@ -77,8 +77,8 @@ public class EpicHeads extends JavaPlugin {
         PluginManager pluginManager = Bukkit.getPluginManager();
         pluginManager.registerEvents(new MenuListener(), this);
         pluginManager.registerEvents(this.chatInput, this);
-        pluginManager.registerEvents(new DeathListeners(this), this);
-        pluginManager.registerEvents(new ItemListeners(this), this);
+        pluginManager.registerEvents(new DeathListeners(), this);
+        pluginManager.registerEvents(new ItemListeners(), this);
         pluginManager.registerEvents(new LoginListeners(this), this);
 
         this.database = new Database(this);
